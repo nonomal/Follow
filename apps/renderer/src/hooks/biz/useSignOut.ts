@@ -1,5 +1,5 @@
+import { signOut } from "@follow/shared/auth"
 import { clearStorage } from "@follow/utils/ns"
-import { signOut } from "@hono/auth-js/react"
 import { useCallback } from "react"
 
 import { setWhoami } from "~/atoms/user"
@@ -9,6 +9,11 @@ import { clearLocalPersistStoreData } from "~/store/utils/clear"
 
 export const useSignOut = () =>
   useCallback(async () => {
+    if (window.__RN__) {
+      window.ReactNativeWebView?.postMessage("sign-out")
+      return
+    }
+
     // Clear query cache
     localStorage.removeItem(QUERY_PERSIST_KEY)
 
@@ -19,7 +24,12 @@ export const useSignOut = () =>
     clearStorage()
     window.analytics?.reset()
     // clear local store data
-    await Promise.allSettled([clearLocalPersistStoreData(), tipcClient?.cleanAuthSessionToken()])
+    await Promise.allSettled([
+      clearLocalPersistStoreData(),
+      tipcClient?.cleanBetterAuthSessionCookie(),
+    ])
     // Sign out
-    await signOut()
+    await signOut().then(() => {
+      window.location.reload()
+    })
   }, [])

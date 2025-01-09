@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@follow/components/ui/avatar/index.jsx"
+import { useMobile } from "@follow/components/hooks/useMobile.js"
 import { MotionButtonBase } from "@follow/components/ui/button/index.js"
 import {
   Table,
@@ -14,9 +14,9 @@ import { Fragment } from "react"
 import { useTranslation } from "react-i18next"
 
 import { useWhoami } from "~/atoms/user"
-import { replaceImgUrlIfNeed } from "~/lib/img-proxy"
 import { usePresentUserProfileModal } from "~/modules/profile/hooks"
 import { SettingSectionTitle } from "~/modules/settings/section"
+import { UserAvatar } from "~/modules/user/UserAvatar"
 import { Balance } from "~/modules/wallet/balance"
 import { Level } from "~/modules/wallet/level"
 import type { useWalletTransactions } from "~/queries/wallet"
@@ -25,7 +25,7 @@ import { useWalletRanking } from "~/queries/wallet"
 const medals = ["", "🥇", "🥈", "🥉"]
 const rankNumber = (index: number) => {
   if (index < medals.length) {
-    return <span className="-ml-[3px]">{medals[index]}</span>
+    return <span className="ml-[-3px]">{medals[index]}</span>
   }
   return <span>{index}</span>
 }
@@ -34,6 +34,7 @@ export const PowerRanking: Component = ({ className }) => {
   const { t } = useTranslation("settings")
   const ranking = useWalletRanking()
 
+  const isMobile = useMobile()
   return (
     <div className="relative flex min-w-0 grow flex-col">
       <SettingSectionTitle title={t("wallet.ranking.title")} />
@@ -41,10 +42,10 @@ export const PowerRanking: Component = ({ className }) => {
         <Table className="w-full table-fixed text-sm">
           <TableHeader className="sticky top-0 bg-theme-background">
             <TableRow className="[&_*]:!font-semibold">
-              <TableHead className="w-20">#</TableHead>
+              <TableHead className="w-12">#</TableHead>
               <TableHead>{t("wallet.ranking.name")}</TableHead>
               <TableHead>{t("wallet.ranking.power")}</TableHead>
-              <TableHead>{t("wallet.ranking.level")}</TableHead>
+              <TableHead className="w-24">{t("wallet.ranking.level")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -57,35 +58,42 @@ export const PowerRanking: Component = ({ className }) => {
                   {!!hasGap && (
                     <>
                       <TableRow>
-                        <TableCell className="py-2">...</TableCell>
+                        <TableCell>...</TableCell>
                       </TableRow>
                       <TableRow>
-                        <div className="h-px w-full" />
+                        <TableCell className="p-0">
+                          <div className="h-px w-full" />
+                        </TableCell>
                       </TableRow>
                     </>
                   )}
                   <TableRow>
-                    <TableCell className="py-2">{!!row.rank && rankNumber(row.rank)}</TableCell>
-                    <TableCell className="py-2">
+                    <TableCell>{!!row.rank && rankNumber(row.rank)}</TableCell>
+                    <TableCell>
                       <UserRenderer
                         user={row.user}
-                        avatarClassName={!!row.rank && row.rank <= 3 ? "size-5" : "size-4"}
+                        avatarClassName={!!row.rank && row.rank <= 3 ? "size-6" : "size-5"}
                       />
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell>
                       <div className="flex items-center gap-1">
-                        <Balance withSuffix>{row.powerToken}</Balance>
+                        <Balance
+                          withSuffix
+                          className="whitespace-nowrap"
+                          withTooltip
+                          scientificThreshold={isMobile ? 6 : 8}
+                        >
+                          {row.powerToken}
+                        </Balance>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2">
-                      {!!row.level && <Level level={row.level} />}
-                    </TableCell>
+                    <TableCell>{!!row.level && <Level level={row.level} />}</TableCell>
                   </TableRow>
                 </Fragment>
               )
             })}
             <TableRow>
-              <TableCell className="py-2">...</TableCell>
+              <TableCell>...</TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -117,10 +125,12 @@ const UserRenderer = ({
       }}
       className="flex w-full min-w-0 cursor-button items-center gap-2"
     >
-      <Avatar className={cn("aspect-square duration-200 animate-in fade-in-0", avatarClassName)}>
-        <AvatarImage src={replaceImgUrlIfNeed(user?.image || undefined)} />
-        <AvatarFallback>{name?.slice(0, 2)}</AvatarFallback>
-      </Avatar>
+      <UserAvatar
+        className="h-auto p-0"
+        avatarClassName={cn(avatarClassName)}
+        userId={user?.id}
+        hideName
+      />
 
       <div className="ml-1 w-0 grow truncate">
         <EllipsisHorizontalTextWithTooltip className="text-left">

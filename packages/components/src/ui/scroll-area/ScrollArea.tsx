@@ -50,7 +50,7 @@ const Scrollbar = React.forwardRef<
       {...rest}
       ref={forwardedRef}
       className={cn(
-        "z-[99] flex w-2.5 touch-none select-none p-0.5",
+        "flex w-2.5 touch-none select-none p-0.5",
         orientation === "horizontal" ? `h-2.5 w-full flex-col` : `w-2.5 flex-row`,
         "animate-in data-[state=hidden]:animate-out data-[state=hidden]:fade-out data-[state=visible]:fade-in",
         className,
@@ -95,6 +95,7 @@ const Viewport = React.forwardRef<
     <ScrollAreaBase.Viewport
       {...rest}
       ref={ref}
+      tabIndex={-1}
       className={cn("block size-full", shouldAddMask && styles["mask-scroller"], className)}
     />
   )
@@ -126,6 +127,7 @@ export const ScrollArea = React.forwardRef<
     flex?: boolean
     mask?: boolean
     onScroll?: (e: React.UIEvent<HTMLDivElement>) => void
+    orientation?: "vertical" | "horizontal"
   }
 >(
   (
@@ -137,6 +139,7 @@ export const ScrollArea = React.forwardRef<
       scrollbarClassName,
       mask = false,
       onScroll,
+      orientation = "vertical",
     },
     ref,
   ) => {
@@ -155,7 +158,7 @@ export const ScrollArea = React.forwardRef<
           >
             {children}
           </Viewport>
-          <Scrollbar className={scrollbarClassName} />
+          <Scrollbar orientation={orientation} className={scrollbarClassName} />
         </Root>
       </ScrollElementContext.Provider>
     )

@@ -16,7 +16,7 @@ export const ClaimDailyReward = () => {
 
   return (
     <Tooltip>
-      <TooltipTrigger>
+      <TooltipTrigger asChild>
         <Button
           variant="primary"
           isLoading={mutation.isPending}
@@ -31,7 +31,7 @@ export const ClaimDailyReward = () => {
           <Trans
             i18nKey="wallet.claim.tooltip.canClaim"
             ns="settings"
-            values={{ amount: serverConfigs?.DAILY_CLAIM_AMOUNT }}
+            values={{ amount: serverConfigs?.DAILY_CLAIM_AMOUNT.normal }}
           />
         ) : (
           t("wallet.claim.tooltip.alreadyClaimed")
