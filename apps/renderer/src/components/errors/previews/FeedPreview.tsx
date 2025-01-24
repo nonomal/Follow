@@ -5,12 +5,12 @@ import type { FeedModel } from "@follow/models/types"
 import { cn } from "@follow/utils/utils"
 import type { FC } from "react"
 import { useTranslation } from "react-i18next"
-import { useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router"
 
 import { getItemComponentByView } from "~/modules/entry-column/Items"
 import type { UniversalItemProps } from "~/modules/entry-column/types"
-import { FeedCertification } from "~/modules/feed/feed-certification"
 import { FeedIcon } from "~/modules/feed/feed-icon"
+import { FeedTitle } from "~/modules/feed/feed-title"
 import { useEntriesPreview } from "~/queries/entries"
 import { useFeed } from "~/queries/feed"
 
@@ -46,7 +46,7 @@ export function FeedPreview(props: {
           <div
             className={cn(
               "mx-auto mt-12 flex w-full flex-col items-center p-4 lg:p-0",
-              views[view].gridMode ? "max-w-full" : "max-w-prose",
+              views[view]!.gridMode ? "max-w-full" : "max-w-prose",
             )}
           >
             <FeedIcon
@@ -56,10 +56,7 @@ export function FeedPreview(props: {
               size={64}
             />
             <div className="flex flex-col items-center">
-              <div className="mb-2 mt-4 flex items-center text-2xl font-bold">
-                <h1>{feed.data.feed.title}</h1>
-                <FeedCertification feed={feed.data.feed} />
-              </div>
+              <FeedTitle feed={feed.data.feed} className="mb-2 mt-4 text-2xl font-bold" />
               <div className="mb-8 text-sm text-zinc-500">{feed.data.feed.description}</div>
             </div>
             <div className="mb-4 text-sm">
@@ -76,7 +73,7 @@ export function FeedPreview(props: {
             <div
               className={cn(
                 "w-full pb-12 pt-8",
-                views[view].gridMode
+                views[view]!.gridMode
                   ? "grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4"
                   : "flex max-w-3xl flex-col gap-6",
               )}
@@ -95,6 +92,7 @@ export function FeedPreview(props: {
                         feeds: feedData,
                         read: true,
                         feedId: feedData.id!,
+                        inboxId: "",
                       }}
                       entryId={entry.id}
                     />

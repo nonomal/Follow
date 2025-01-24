@@ -2,10 +2,11 @@ import { Logo } from "@follow/components/icons/logo.jsx"
 import { Button } from "@follow/components/ui/button/index.js"
 import { captureException } from "@sentry/react"
 import { useEffect } from "react"
-import type { Location } from "react-router-dom"
-import { useLocation, useNavigate } from "react-router-dom"
+import type { Location } from "react-router"
+import { Navigate, useLocation, useNavigate } from "react-router"
 
 import { isElectronBuild } from "~/constants"
+import { removeAppSkeleton } from "~/lib/app"
 
 import { PoweredByFooter } from "./PoweredByFooter"
 
@@ -19,7 +20,7 @@ class AccessNotFoundError extends Error {
     this.name = "AccessNotFoundError"
   }
 
-  toString() {
+  override toString() {
     return `${this.name}: ${this.message} at ${this.path}`
   }
 }
@@ -37,7 +38,16 @@ export const NotFound = () => {
       ),
     )
   }, [location])
+
+  useEffect(() => {
+    removeAppSkeleton()
+  }, [])
   const navigate = useNavigate()
+
+  if (window.__RN__ && location.pathname.endsWith("/index.html")) {
+    return <Navigate to="/" />
+  }
+
   return (
     <div className="prose center m-auto size-full flex-col dark:prose-invert">
       <main className="flex grow flex-col items-center justify-center">

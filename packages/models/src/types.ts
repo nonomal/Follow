@@ -5,9 +5,11 @@ import type { z } from "zod"
 declare const _apiClient: ReturnType<typeof hc<AppType>>
 
 export type UserModel = Omit<
-  Omit<Omit<typeof users.$inferSelect, "emailVerified">, "email">,
-  "createdAt"
->
+  typeof users.$inferSelect,
+  "createdAt" | "updatedAt" | "email" | "emailVerified" | "twoFactorEnabled"
+> & {
+  email?: string
+}
 
 export type ExtractBizResponse<T extends (...args: any[]) => any> = Exclude<
   Awaited<ReturnType<T>>,
@@ -46,10 +48,12 @@ export type EntriesResponse = Array<
   | Exclude<Awaited<ReturnType<typeof _apiClient.entries.inbox.$post>>["data"], undefined>
 >[number]
 
-export type CombinedEntryModel = EntriesResponse[number] & {
+export type CombinedEntryModel = Omit<EntriesResponse[number], "feeds"> & {
   entries: {
     content?: string | null
   }
+  inboxes?: InboxModel
+  feeds?: EntriesResponse[number]["feeds"]
 }
 export type EntryModel = CombinedEntryModel["entries"]
 export type EntryModelSimple = Exclude<
@@ -89,26 +93,37 @@ export type RecommendationItem = ExtractBizResponse<
 
 export type ActionOperation = "contains" | "not_contains" | "eq" | "not_eq" | "gt" | "lt" | "regex"
 export type ActionEntryField = "all" | "title" | "content" | "author" | "url" | "order"
-export type ActionFeedField = "view" | "title" | "site_url" | "feed_url" | "category"
+export type ActionFeedField =
+  | "view"
+  | "title"
+  | "site_url"
+  | "feed_url"
+  | "category"
+  | "entry_title"
+  | "entry_content"
+  | "entry_url"
+  | "entry_author"
+  | "entry_media_length"
 
 export type MediaModel = Exclude<
   ExtractBizResponse<typeof _apiClient.entries.$get>["data"],
   undefined
 >["entries"]["media"]
 
-export type ActionsInput = {
+export type ActionModel = {
   name: string
   condition: {
     field?: ActionFeedField
     operator?: ActionOperation
     value?: string
-  }[]
+  }[][]
   result: {
     disabled?: boolean
     translation?: string
     summary?: boolean
     readability?: boolean
     silence?: boolean
+    block?: boolean
     sourceContent?: boolean
     newEntryNotification?: boolean
     rewriteRules?: {
@@ -122,10 +137,21 @@ export type ActionsInput = {
     }[]
     webhooks?: string[]
   }
-}[]
+}
+
+export type ActionsInput = ActionModel[]
 
 export const TransactionTypes = ["mint", "purchase", "tip", "withdraw", "airdrop"] as const
 
 export type WalletModel = ExtractBizResponse<typeof _apiClient.wallets.$get>["data"][number]
 
 export type ServerConfigs = ExtractBizResponse<typeof _apiClient.status.configs.$get>["data"]
+
+export type RSSHubModel = Omit<
+  ExtractBizResponse<typeof _apiClient.rsshub.list.$get>["data"][number],
+  "userCount"
+> & {
+  baseUrl?: string | null
+  accessKey?: string | null
+  userCount?: number
+}

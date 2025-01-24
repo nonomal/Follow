@@ -5,10 +5,17 @@ import { createElement } from "react"
 import type { ExternalToast } from "sonner"
 import { toast } from "sonner"
 
-import { CopyButton } from "~/components/ui/code-highlighter"
+import { CopyButton } from "~/components/ui/button/CopyButton"
 import { Markdown } from "~/components/ui/markdown/Markdown"
+import { isDev } from "~/constants"
+import { DebugRegistry } from "~/modules/debug/registry"
 
-export const getFetchErrorMessage = (error: Error) => {
+export const getFetchErrorInfo = (
+  error: Error,
+): {
+  message: string
+  code?: number
+} => {
   if (error instanceof FetchError) {
     try {
       const json = JSON.parse(error.response?._data)
@@ -16,13 +23,21 @@ export const getFetchErrorMessage = (error: Error) => {
       const { reason, code, message } = json
       const i18nKey = `errors:${code}` as any
       const i18nMessage = t(i18nKey) === i18nKey ? message : t(i18nKey)
-      return `${i18nMessage}${reason ? `: ${reason}` : ""}`
+      return {
+        message: `${i18nMessage}${reason ? `: ${reason}` : ""}`,
+        code,
+      }
     } catch {
-      return error.message
+      return { message: error.message }
     }
   }
 
-  return error.message
+  return { message: error.message }
+}
+
+export const getFetchErrorMessage = (error: Error) => {
+  const { message } = getFetchErrorInfo(error)
+  return message
 }
 
 /**
@@ -37,16 +52,21 @@ export const toastFetchError = (
 ) => {
   let message = ""
   let _reason = ""
+  let code: number | undefined
 
   if (error instanceof FetchError) {
     try {
-      const json = JSON.parse(error.response?._data)
+      const json =
+        typeof error.response?._data === "string"
+          ? JSON.parse(error.response?._data)
+          : error.response?._data
 
-      const { reason, code, message: _message } = json
+      const { reason, code: _code, message: _message } = json
+      code = _code
       message = _message
 
       const tValue = t(`errors:${code}` as any)
-      const i18nMessage = tValue === code.toString() ? message : tValue
+      const i18nMessage = tValue === code?.toString() ? message : tValue
 
       message = i18nMessage
 
@@ -58,11 +78,16 @@ export const toastFetchError = (
     }
   }
 
+  // 2fa errors are handled by the form
+  if (code === 4007 || code === 4008) {
+    return
+  }
+
   const toastOptions: ExternalToast = {
     ..._toastOptions,
     classNames: {
       toast: "items-start bg-theme-background",
-      title: tw`-mt-0.5`, // to align with the icon (actually cut the top space from line-height)
+
       content: "w-full",
       ..._toastOptions.classNames,
     },
@@ -94,4 +119,20 @@ export const toastFetchError = (
       ]),
     })
   }
+}
+if (isDev) {
+  DebugRegistry.add("Simulate request error", () => {
+    createErrorToaster(
+      "Simulated request error",
+      {},
+    )({
+      response: {
+        _data: JSON.stringify({
+          code: 1000,
+          message: "Simulated request error",
+          reason: "Simulated reason",
+        }),
+      },
+    } as any)
+  })
 }

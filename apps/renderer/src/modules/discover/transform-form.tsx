@@ -67,11 +67,11 @@ export function DiscoverTransform() {
 
   return (
     <>
-      {data?.rsshub.routes && (
-        <div className="w-[540px]">
+      {data?.rsshub!.routes && (
+        <div className="w-full max-w-[540px]">
           <DiscoverFeedForm
             routePrefix="rsshub"
-            route={data?.rsshub.routes["/transform/html/:url/:routeParams"]}
+            route={data?.rsshub.routes["/transform/html/:url/:routeParams"]!}
             routeParams={transformRouteParams}
             noDescription
             submitButtonClassName="justify-center"

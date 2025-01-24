@@ -35,20 +35,16 @@ import { z } from "zod"
 import type { Suggestion } from "~/components/ui/auto-completion"
 import { Autocomplete } from "~/components/ui/auto-completion"
 import { useCurrentModal } from "~/components/ui/modal/stacked/hooks"
+import { useAddFeedToFeedList, useRemoveFeedFromFeedList } from "~/hooks/biz/useFeedActions"
 import { apiClient } from "~/lib/api-fetch"
 import { createErrorToaster } from "~/lib/error-parser"
 import { FeedCertification } from "~/modules/feed/feed-certification"
 import { FeedIcon } from "~/modules/feed/feed-icon"
 import { ViewSelectorRadioGroup } from "~/modules/shared/ViewSelectorRadioGroup"
 import { Queries } from "~/queries"
-import {
-  getFeedById,
-  useAddFeedToFeedList,
-  useFeedById,
-  useRemoveFeedFromFeedList,
-} from "~/store/feed"
+import { useFeedById } from "~/store/feed"
 import { useListById } from "~/store/list"
-import { subscriptionActions, useSubscriptionStore } from "~/store/subscription"
+import { subscriptionActions, useAllFeeds } from "~/store/subscription"
 
 const formSchema = z.object({
   view: z.string(),
@@ -67,7 +63,7 @@ export const ListCreationModalContent = ({ id }: { id?: string }) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      view: list?.view.toString() || views[0].view.toString(),
+      view: list?.view.toString() || views[0]?.view.toString(),
       fee: list?.fee || 0,
       title: list?.title || "",
       description: list?.description || "",
@@ -100,7 +96,8 @@ export const ListCreationModalContent = ({ id }: { id?: string }) => {
       dismiss()
 
       if (!list) return
-      if (id) subscriptionActions.changeListView(id, views[list.view].view, views[values.view].view)
+      if (id)
+        subscriptionActions.changeListView(id, views[list.view]!.view, views[values.view].view)
     },
     onError: createErrorToaster(id ? t("lists.edit.error") : t("lists.created.error")),
   })
@@ -111,7 +108,7 @@ export const ListCreationModalContent = ({ id }: { id?: string }) => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="w-[450px] space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 lg:w-[450px]">
         <FormField
           control={form.control}
           name="title"
@@ -193,6 +190,8 @@ export const ListCreationModalContent = ({ id }: { id?: string }) => {
                   <Input
                     {...field}
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     min={0}
                     onChange={(value) => field.onChange(value.target.valueAsNumber)}
                   />
@@ -218,27 +217,15 @@ export const ListFeedsModalContent = ({ id }: { id: string }) => {
   const { t } = useTranslation("settings")
 
   const [feedSearchFor, setFeedSearchFor] = useState("")
+  const selectedFeedIdRef = useRef<string | null>()
   const addMutation = useAddFeedToFeedList({
     onSuccess: () => {
       setFeedSearchFor("")
+      selectedFeedIdRef.current = null
     },
   })
 
-  const allFeeds = useSubscriptionStore((store) => {
-    const feedInfo = [] as { title: string; id: string }[]
-
-    const allSubscriptions = Object.values(store.feedIdByView).flat()
-
-    for (const feedId of allSubscriptions) {
-      const subscription = store.data[feedId]
-      const feed = getFeedById(feedId)
-      if (feed && feed.type === "feed") {
-        feedInfo.push({ title: subscription.title || feed.title || "", id: feed.id })
-      }
-    }
-    return feedInfo
-  })
-
+  const allFeeds = useAllFeeds()
   const autocompleteSuggestions: Suggestion[] = useMemo(() => {
     return allFeeds
       .filter((feed) => !list?.feedIds?.includes(feed.id))
@@ -248,7 +235,6 @@ export const ListFeedsModalContent = ({ id }: { id: string }) => {
       }))
   }, [allFeeds, list?.feedIds])
 
-  const selectedFeedIdRef = useRef<string | null>()
   if (!list) return null
   return (
     <>
@@ -320,7 +306,7 @@ const RowRender = ({ feedId, listId }: { feedId: string; listId: string }) => {
           href={UrlBuilder.shareFeed(feed.id)}
           className="flex items-center gap-2 font-semibold"
         >
-          {feed.siteUrl && <FeedIcon className="mr-0" siteUrl={feed.siteUrl} />}
+          {feed.siteUrl && <FeedIcon noMargin siteUrl={feed.siteUrl} />}
           <span className="inline-block max-w-[200px] truncate">{feed.title}</span>
         </a>
       </TableCell>
@@ -335,5 +321,58 @@ const RowRender = ({ feedId, listId }: { feedId: string; listId: string }) => {
         </Button>
       </TableCell>
     </TableRow>
+  )
+}
+const categoryFormSchema = z.object({
+  categoryName: z.string().min(1),
+})
+export const CategoryCreationModalContent = ({
+  onSubmit,
+}: {
+  onSubmit: (category: string) => void
+}) => {
+  const { dismiss } = useCurrentModal()
+  const { t } = useTranslation()
+
+  const form = useForm<z.infer<typeof categoryFormSchema>>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: {
+      categoryName: "",
+    },
+  })
+
+  const handleSubmit = form.handleSubmit(({ categoryName }) => {
+    onSubmit(categoryName)
+    dismiss()
+  })
+
+  return (
+    <Form {...form}>
+      <form onSubmit={handleSubmit} className="space-y-4 lg:w-[450px]">
+        <FormField
+          control={form.control}
+          name="categoryName"
+          render={({ field }) => (
+            <FormItem>
+              <div>
+                <FormLabel>
+                  {t("sidebar.feed_column.context_menu.new_category_modal.category_name")}
+                  <sup className="ml-1 align-sub text-red-500">*</sup>
+                </FormLabel>
+              </div>
+              <FormControl>
+                <Input autoFocus {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="flex justify-end">
+          <Button type="submit">
+            {t("sidebar.feed_column.context_menu.new_category_modal.create")}
+          </Button>
+        </div>
+      </form>
+    </Form>
   )
 }

@@ -25,7 +25,7 @@ function isNodeWithinCircularImports(
         ...nodeChain.slice(importerIndex, -1).reverse(),
       ].map((m) => path.relative(process.cwd(), m.file))
 
-      console.warn(yellow(`Circular imports detected: ${importChain.join("\n↳  ")}`))
+      console.warn(yellow(`Circular imports detected: \n${importChain.join("\n↳  ")}`))
       return true
     }
 
@@ -44,6 +44,11 @@ function isNodeWithinCircularImports(
 
 export const circularImportRefreshPlugin = (): Plugin => ({
   name: "circular-import-refresh",
+  configureServer(server) {
+    server.ws.on("message", (message) => {
+      console.info(message)
+    })
+  },
   handleHotUpdate({ file, server }: HmrContext) {
     const mod = server.moduleGraph.getModuleById(file)
 

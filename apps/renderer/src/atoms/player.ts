@@ -1,4 +1,5 @@
 import { getStorageNS } from "@follow/utils/ns"
+import { parseSafeUrl } from "@follow/utils/utils"
 import { noop } from "foxact/noop"
 import { atomWithStorage, createJSONStorage } from "jotai/utils"
 import type { SyncStorage } from "jotai/vanilla/utils/atomWithStorage"
@@ -29,13 +30,15 @@ const playerInitialValue: PlayerAtomValue = {
 }
 
 const jsonStorage = createJSONStorage<PlayerAtomValue>()
+let hydrationDone = false
 const patchedLocalStorage: SyncStorage<PlayerAtomValue> = {
   setItem: jsonStorage.setItem,
   getItem: (key, initialValue) => {
     const value = jsonStorage.getItem(key, initialValue)
-    if (value) {
+    if (value && !hydrationDone) {
       // patch status to `paused` when hydration
       value.status = "paused"
+      hydrationDone = true
     }
     return value
   },
@@ -78,8 +81,11 @@ export const AudioPlayer = {
       show: true,
       listId: routeParams.listId,
     })
+    const currentUrl = parseSafeUrl(this.audio.src)?.toString() ?? this.audio.src
+    const newUrl = parseSafeUrl(v.src)?.toString() ?? v.src
 
-    if (this.audio.src !== v.src) {
+    // It seems that audio load from local file has some limitations, i think reset the audio should be fine here
+    if (currentUrl !== newUrl || newUrl.startsWith("file://")) {
       this.audio.src = v.src
       this.audio.currentTime = v.currentTime ?? curV.currentTime ?? 0
     }

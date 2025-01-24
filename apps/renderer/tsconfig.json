@@ -7,15 +7,23 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
     "baseUrl": ".",
     "noImplicitReturns": false,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["vite/client", "@follow/types/global", "@follow/types/react"],
+    "types": [
+      "vite/client",
+      "vite-plugin-pwa/client",
+      "@follow/types/global",
+      "@follow/types/react"
+    ],
     "paths": {
       "~/*": ["src/*"],
       "@pkg": ["../../package.json"],
       "@locales/*": ["../../locales/*"]
     }
-  }
+  },
+  "references": [{ "path": "../main" }]
 }

@@ -1,15 +1,11 @@
+import { useMobile } from "@follow/components/hooks/useMobile.js"
 import { LoadingCircle } from "@follow/components/ui/loading/index.jsx"
-import { stopPropagation } from "@follow/utils/dom"
-import { cn, getOS } from "@follow/utils/utils"
+import { cn } from "@follow/utils/utils"
 import type { VariantProps } from "class-variance-authority"
 import type { HTMLMotionProps } from "framer-motion"
 import { m } from "framer-motion"
 import * as React from "react"
-import { useHotkeys } from "react-hotkeys-hook"
-import type { OptionsOrDependencyArray } from "react-hotkeys-hook/dist/types"
 
-import { KbdCombined } from "../kbd/Kbd"
-import { Tooltip, TooltipContent, TooltipPortal, TooltipTrigger } from "../tooltip"
 import { styledButtonVariant } from "./variants"
 
 export interface BaseButtonProps {
@@ -18,132 +14,31 @@ export interface BaseButtonProps {
 
 // BIZ buttons
 
-interface ActionButtonProps {
-  icon?: React.ReactNode | React.FC<ComponentType>
-  tooltip?: React.ReactNode
-  tooltipSide?: "top" | "bottom"
-  active?: boolean
-  disabled?: boolean
-  shortcut?: string
-  disableTriggerShortcut?: boolean
-  size?: "sm" | "md" | "base"
-}
-
-const actionButtonStyleVariant = {
-  size: {
-    base: tw`text-xl size-8`,
-    sm: tw`text-sm size-6`,
+const motionBaseMap = {
+  pc: {
+    whileFocus: { scale: 1.02 },
+    whileTap: { scale: 0.95 },
   },
-}
-export const ActionButton = React.forwardRef<
-  HTMLButtonElement,
-  ComponentType<ActionButtonProps> & React.HTMLAttributes<HTMLButtonElement>
->(
-  (
-    {
-      icon,
-
-      tooltip,
-      className,
-      tooltipSide,
-      children,
-      active,
-      shortcut,
-      disabled,
-      disableTriggerShortcut,
-      size = "base",
-      ...rest
-    },
-    ref,
-  ) => {
-    const finalShortcut =
-      getOS() === "Windows" ? shortcut?.replace("meta", "ctrl").replace("Meta", "Ctrl") : shortcut
-    const buttonRef = React.useRef<HTMLButtonElement>(null)
-    React.useImperativeHandle(ref, () => buttonRef.current!)
-
-    const Trigger = (
-      <button
-        ref={buttonRef}
-        // @see https://github.com/radix-ui/primitives/issues/2248#issuecomment-2147056904
-        onFocusCapture={stopPropagation}
-        className={cn(
-          "no-drag-region inline-flex items-center justify-center",
-          active && "bg-zinc-500/15 hover:bg-zinc-500/20",
-          "rounded-md duration-200 hover:bg-theme-button-hover data-[state=open]:bg-theme-button-hover",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-          actionButtonStyleVariant.size[size],
-          className,
-        )}
-        type="button"
-        disabled={disabled}
-        {...rest}
-      >
-        {typeof icon === "function"
-          ? React.createElement(icon, {
-              className: "size-4 grayscale text-current",
-            })
-          : icon}
-
-        {children}
-      </button>
-    )
-    return (
-      <>
-        {finalShortcut && !disableTriggerShortcut && (
-          <HotKeyTrigger shortcut={finalShortcut} fn={() => buttonRef.current?.click()} />
-        )}
-        {tooltip ? (
-          <Tooltip disableHoverableContent>
-            <TooltipTrigger aria-label={typeof tooltip === "string" ? tooltip : undefined} asChild>
-              {Trigger}
-            </TooltipTrigger>
-            <TooltipPortal>
-              <TooltipContent className="flex items-center gap-1" side={tooltipSide ?? "bottom"}>
-                {tooltip}
-                {!!finalShortcut && (
-                  <div className="ml-1">
-                    <KbdCombined className="text-foreground/80">{finalShortcut}</KbdCombined>
-                  </div>
-                )}
-              </TooltipContent>
-            </TooltipPortal>
-          </Tooltip>
-        ) : (
-          Trigger
-        )}
-      </>
-    )
+  mobile: {
+    whileFocus: { opacity: 0.8 },
+    whileTap: { opacity: 0.2 },
   },
-)
-
-const HotKeyTrigger = ({
-  shortcut,
-  fn,
-  options,
-}: {
-  shortcut: string
-  fn: () => void
-  options?: OptionsOrDependencyArray
-}) => {
-  useHotkeys(shortcut, fn, {
-    preventDefault: true,
-    ...options,
-  })
-  return null
-}
+} as const
 export const MotionButtonBase = React.forwardRef<HTMLButtonElement, HTMLMotionProps<"button">>(
-  ({ children, ...rest }, ref) => (
-    <m.button
-      layout="size"
-      initial
-      whileFocus={{ scale: 1.02 }}
-      whileTap={{ scale: 0.95 }}
-      {...rest}
-      ref={ref}
-    >
-      {children}
-    </m.button>
-  ),
+  ({ children, ...rest }, ref) => {
+    const isMobile = useMobile()
+    return (
+      <m.button
+        layout="size"
+        initial
+        {...motionBaseMap[isMobile ? "mobile" : "pc"]}
+        {...rest}
+        ref={ref}
+      >
+        {children}
+      </m.button>
+    )
+  },
 )
 
 MotionButtonBase.displayName = "MotionButtonBase"
@@ -157,17 +52,17 @@ export const Button = React.forwardRef<
         buttonClassName?: string
       }
   >
->(({ className, buttonClassName, isLoading, variant, status, ...props }, ref) => {
+>(({ className, buttonClassName, disabled, isLoading, variant, status, ...props }, ref) => {
   const handleClick: React.MouseEventHandler<HTMLButtonElement> = React.useCallback(
     (e) => {
-      if (isLoading || props.disabled) {
+      if (isLoading || disabled) {
         e.preventDefault()
         return
       }
 
       props.onClick?.(e)
     },
-    [isLoading, props],
+    [disabled, isLoading, props],
   )
   return (
     <MotionButtonBase
@@ -175,11 +70,12 @@ export const Button = React.forwardRef<
       className={cn(
         styledButtonVariant({
           variant,
-          status: isLoading || props.disabled ? "disabled" : undefined,
+          status: isLoading || disabled ? "disabled" : undefined,
         }),
         className,
         buttonClassName,
       )}
+      disabled={isLoading || disabled}
       {...props}
       onClick={handleClick}
     >
@@ -238,3 +134,5 @@ export const IconButton = React.forwardRef<
     </button>
   )
 })
+
+export { ActionButton, type ActionButtonProps } from "./action-button"

@@ -9,6 +9,7 @@ import { app, nativeTheme, Notification, shell } from "electron"
 import contextMenu from "electron-context-menu"
 
 import { getIconPath } from "./helper"
+import { checkAndCleanCodeCache, clearCacheCronJob } from "./lib/cleaner"
 import { t } from "./lib/i18n"
 import { store } from "./lib/store"
 import { updateNotificationsToken } from "./lib/user"
@@ -19,7 +20,7 @@ import { initializeSentry } from "./sentry"
 import { router } from "./tipc"
 import { createMainWindow, getMainWindow } from "./window"
 
-if (process.argv.length === 3 && process.argv[2].startsWith("follow-dev:")) {
+if (process.argv.length === 3 && process.argv[2]!.startsWith("follow-dev:")) {
   process.env.NODE_ENV = "development"
 }
 const isDev = process.env.NODE_ENV === "development"
@@ -35,7 +36,7 @@ export const initializeAppStage1 = () => {
   if (process.defaultApp) {
     if (process.argv.length >= 2) {
       app.setAsDefaultProtocolClient(APP_PROTOCOL, process.execPath, [
-        path.resolve(process.argv[1]),
+        path.resolve(process.argv[1]!),
       ])
     }
   } else {
@@ -57,8 +58,9 @@ export const initializeAppStage1 = () => {
   // code. You can also put them in separate files and require them here.
 
   registerMenuAndContextMenu()
-
   registerPushNotifications()
+  clearCacheCronJob()
+  checkAndCleanCodeCache()
 }
 
 let contextMenuDisposer: () => void
@@ -148,7 +150,7 @@ const registerPushNotifications = async () => {
     debug: true,
     firebase: JSON.parse(env.VITE_FIREBASE_CONFIG),
     persistentIds: persistentIds || [],
-    credentials: credentials || null,
+    credentials: credentials || undefined,
     bundleId: "is.follow",
     chromeId: "is.follow",
   })

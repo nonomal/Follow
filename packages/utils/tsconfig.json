@@ -2,8 +2,8 @@
   "extends": "../tsconfig.extend.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "declaration": true,
-    "types": ["@follow/types/global"],
+    "declaration": false,
+    "types": ["@follow/types/global", "@follow/types/vite"],
     "paths": {
       "@follow/utils/*": ["./src/*"]
     }
