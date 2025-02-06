@@ -2,7 +2,7 @@ import fs from "node:fs"
 import path, { dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { set } from "lodash-es"
+import { set } from "es-toolkit/compat"
 import type { Plugin } from "vite"
 
 export function localesPlugin(): Plugin {
@@ -15,7 +15,7 @@ export function localesPlugin(): Plugin {
       const localesDir = path.resolve(__dirname, "../../locales")
 
       const namespaces = fs.readdirSync(localesDir).filter((dir) => dir !== ".DS_Store")
-      const languageResources = {}
+      const languageResources = {} as any
 
       namespaces.forEach((namespace) => {
         const namespacePath = path.join(localesDir, namespace)

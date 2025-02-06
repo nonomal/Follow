@@ -1,11 +1,14 @@
-import * as Sentry from "@sentry/electron/main"
+import { app } from "electron"
 import { FetchError } from "ofetch"
 
-export const initializeSentry = () => {
-  Sentry.init({
+import { DEVICE_ID } from "./constants/system"
+
+export const initializeSentry = async () => {
+  const { captureConsoleIntegration, init, setTag } = await import("@sentry/electron/main")
+  init({
     dsn: process.env.VITE_SENTRY_DSN,
     integrations: [
-      Sentry.captureConsoleIntegration({
+      captureConsoleIntegration({
         levels: ["error"],
       }),
     ],
@@ -32,4 +35,7 @@ export const initializeSentry = () => {
       return event
     },
   })
+  setTag("device_id", DEVICE_ID)
+  setTag("app_version", app.getVersion())
+  setTag("build", "electron")
 }

@@ -1,6 +1,6 @@
-import { get, omit } from "lodash-es"
+import { get, omit } from "es-toolkit/compat"
 import { Fragment } from "react/jsx-runtime"
-import type { RouteObject } from "react-router-dom"
+import type { RouteObject } from "react-router"
 
 type NestedStructure = { [key: string]: NestedStructure }
 
@@ -98,7 +98,7 @@ export function buildGlobRoutes(glob: Record<string, () => Promise<any>>): Route
         // }
 
         const childrenChildren: RouteObject[] = []
-        dtsRoutes(`${segmentPathKey}/`, childrenChildren, paths[key], parentPath)
+        dtsRoutes(`${segmentPathKey}/`, childrenChildren, paths[key]!, parentPath)
         children.push({
           path: "",
           lazy: globGetter,
@@ -119,7 +119,7 @@ export function buildGlobRoutes(glob: Record<string, () => Promise<any>>): Route
 
         const childrenChildren: RouteObject[] = []
         // should omit layout, because layout is already handled
-        dtsRoutes(parentKey, childrenChildren, omit(paths, "layout"), parentPath)
+        dtsRoutes(parentKey, childrenChildren, omit(paths, "layout") as NestedStructure, parentPath)
         children.push({
           path: "",
           lazy: globGetter,
@@ -131,7 +131,7 @@ export function buildGlobRoutes(glob: Record<string, () => Promise<any>>): Route
         })
         break
       } else {
-        const content = paths[key]
+        const content = paths[key]!
         const hasChild = Object.keys(content).length > 0
 
         const normalizeKey = normalizePathKey(key)
@@ -158,7 +158,7 @@ export function buildGlobRoutes(glob: Record<string, () => Promise<any>>): Route
         } else {
           const childrenChildren: RouteObject[] = []
           const fullPath = `${parentPath}/${normalizeKey}`
-          dtsRoutes(`${segmentPathKey}/`, childrenChildren, paths[key], fullPath)
+          dtsRoutes(`${segmentPathKey}/`, childrenChildren, paths[key]!, fullPath)
           children.push({
             path: normalizeKey,
             children: childrenChildren,

@@ -37,7 +37,7 @@ const HeaderWrapper: Component = (props) => {
     <header
       className={cn(
         "fixed inset-x-0 top-0 z-50 flex h-[80px] w-full items-center px-4 duration-200 lg:px-10",
-        showOverlay && "h-[60px] border-b",
+        showOverlay && "h-[60px]",
       )}
     >
       <div
@@ -56,13 +56,13 @@ const HeaderWrapper: Component = (props) => {
 }
 export const Header = () => {
   const handleToApp = () => {
-    openInFollowApp(
-      "",
-      () => {
-        window.open(siteConfig.appUrl, "_blank")
+    openInFollowApp({
+      deeplink: "",
+      fallback: () => {
+        return siteConfig.appUrl
       },
-      true,
-    )
+      fallbackUrl: siteConfig.appUrl,
+    })
   }
   useHotkeys("l", handleToApp)
 
@@ -96,7 +96,7 @@ export const Header = () => {
               onClick={handleToApp}
             >
               Open app
-              <Kbd className="kbd-xs !leading-0 !dark:bg-zinc-200 ml-2 size-5 scale-[0.85] rounded-sm !border-transparent !bg-zinc-50 !font-mono text-black">
+              <Kbd className="!leading-0 !dark:bg-zinc-200 kbd-xs ml-2 size-5 scale-[0.85] rounded-sm !border-transparent !bg-zinc-50 !font-mono text-black">
                 L
               </Kbd>
             </Button>

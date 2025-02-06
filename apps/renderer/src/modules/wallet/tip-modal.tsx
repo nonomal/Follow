@@ -7,7 +7,7 @@ import { nextFrame } from "@follow/utils/dom"
 import { from } from "dnum"
 import type { FC } from "react"
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router"
 
 import { useCurrentModal } from "~/components/ui/modal/stacked/hooks"
 import { useI18n } from "~/hooks/common"
@@ -15,6 +15,7 @@ import { UserAvatar } from "~/modules/user/UserAvatar"
 import { useWallet, useWalletTipMutation } from "~/queries/wallet"
 
 import { useFeedClaimModal } from "../claim"
+import { useTOTPModalWrapper } from "../profile/hooks"
 import { Balance } from "./balance"
 
 const DEFAULT_RECOMMENDED_TIP = 10
@@ -31,7 +32,7 @@ const Loading = () => (
 )
 
 export const TipModalContent: FC<{
-  userId?: string
+  userId?: string | null
   feedId: string
   entryId: string
 }> = (props) => {
@@ -43,7 +44,7 @@ export const TipModalContent: FC<{
   return <TipModalContent_ {...props} />
 }
 const TipModalContent_: FC<{
-  userId?: string
+  userId?: string | null
   feedId: string
   entryId: string
 }> = ({ userId, feedId, entryId }) => {
@@ -56,6 +57,7 @@ const TipModalContent_: FC<{
   const balanceBigInt = cPowerBigInt + dPowerBigInt
 
   const tipMutation = useWalletTipMutation()
+  const present = useTOTPModalWrapper(tipMutation.mutateAsync)
 
   const [amount, setAmount] = useState<number>(DEFAULT_RECOMMENDED_TIP)
 
@@ -65,9 +67,7 @@ const TipModalContent_: FC<{
 
   const { dismiss } = useCurrentModal()
 
-  const claimFeed = useFeedClaimModal({
-    feedId,
-  })
+  const claimFeed = useFeedClaimModal()
 
   const navigate = useNavigate()
 
@@ -109,7 +109,7 @@ const TipModalContent_: FC<{
   }
 
   return (
-    <div className="flex w-[80vw] max-w-[350px] flex-col gap-3">
+    <div className="flex w-full flex-col gap-3 lg:w-[80vw] lg:max-w-[350px]">
       {userId ? (
         <>
           <p className="text-sm font-medium">{t("tip_modal.feed_owner")}</p>
@@ -127,7 +127,7 @@ const TipModalContent_: FC<{
             </span>
           </p>
           <div className="text-center">
-            <Button variant="text" className="w-fit p-0" onClick={() => claimFeed()}>
+            <Button variant="text" className="w-fit p-0" onClick={() => claimFeed({ feedId })}>
               {t("tip_modal.claim_feed")}
             </Button>
           </div>
@@ -184,7 +184,7 @@ const TipModalContent_: FC<{
           isLoading={tipMutation.isPending}
           onClick={() => {
             if (tipMutation.isPending) return
-            tipMutation.mutate({
+            present({
               entryId,
               amount: amountBigInt.toString() as "1000000000000000000" | "2000000000000000000",
             })

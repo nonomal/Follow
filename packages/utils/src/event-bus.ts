@@ -13,7 +13,9 @@ class EventBusEvent extends Event {
 }
 type AnyObject = Record<string, any>
 class EventBusStatic<E extends AnyObject> {
-  dispatch<T extends keyof E>(event: T, data: E[T]) {
+  dispatch<T extends keyof E>(event: T, data: E[T]): void
+  dispatch<T extends keyof E>(event: T): void
+  dispatch<T extends keyof E>(event: T, data?: E[T]) {
     window.dispatchEvent(new EventBusEvent(event as string, data))
   }
 
@@ -28,7 +30,7 @@ class EventBusStatic<E extends AnyObject> {
     return this.unsubscribe.bind(this, event as string, handler)
   }
 
-  unsubscribe(event: string, handler: (e: any) => void) {
+  unsubscribe(_event: string, handler: (e: any) => void) {
     window.removeEventListener(EventBusEvent.type, handler)
   }
 }

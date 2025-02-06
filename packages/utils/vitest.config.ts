@@ -13,7 +13,7 @@ export default defineProject({
   test: {
     globals: true,
     includeSource: [resolve(__dirname, ".")],
-    dom: true,
+    environment: "happy-dom",
   },
 
   define: {

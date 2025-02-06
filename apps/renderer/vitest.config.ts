@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url"
 import tsconfigPath from "vite-tsconfig-paths"
 import { defineProject } from "vitest/config"
 
-import { twMacro } from "../../plugins/vite/tw-macro"
+import { astPlugin } from "../../plugins/vite/ast"
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"))
 const __dirname = fileURLToPath(new URL(".", import.meta.url))
@@ -17,7 +17,6 @@ export default defineProject({
     setupFiles: [resolve(__dirname, "./setup-file.ts")],
     environment: "happy-dom",
     includeSource: [resolve(__dirname, ".")],
-    dom: true,
   },
 
   define: {
@@ -31,11 +30,9 @@ export default defineProject({
   },
 
   plugins: [
-    twMacro(),
+    astPlugin,
     tsconfigPath({
       projects: ["./tsconfig.json"],
     }),
-
-    twMacro(),
   ],
 })

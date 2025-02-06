@@ -1,18 +1,23 @@
 import { getReadonlyRoute, getStableRouterNavigate } from "@follow/components/atoms/route.js"
-import { FeedViewType } from "@follow/constants"
-import { isUndefined } from "lodash-es"
+import { useMobile } from "@follow/components/hooks/useMobile.js"
+import { useSheetContext } from "@follow/components/ui/sheet/context.js"
+import type { FeedViewType } from "@follow/constants"
+import { useCallback } from "react"
 
-import { setSidebarActiveView } from "~/atoms/sidebar"
+import { disableShowAISummary } from "~/atoms/ai-summary"
+import { disableShowAITranslation } from "~/atoms/ai-translation"
 import { resetShowSourceContent } from "~/atoms/source-content"
 import {
   ROUTE_ENTRY_PENDING,
   ROUTE_FEED_IN_FOLDER,
-  ROUTE_FEED_IN_INBOX,
-  ROUTE_FEED_IN_LIST,
   ROUTE_FEED_PENDING,
+  ROUTE_TIMELINE_OF_INBOX,
+  ROUTE_TIMELINE_OF_LIST,
+  ROUTE_TIMELINE_OF_VIEW,
 } from "~/constants"
 
 export type NavigateEntryOptions = Partial<{
+  timelineId: string
   feedId: string | null
   entryId: string | null
   view: FeedViewType
@@ -23,13 +28,32 @@ export type NavigateEntryOptions = Partial<{
 /**
  * @description a hook to navigate to `feedId`, `entryId`, add search for `view`, `level`
  */
-// eslint-disable-next-line @eslint-react/hooks-extra/ensure-custom-hooks-using-other-hooks
-export const useNavigateEntry = () => navigateEntry
+export const useNavigateEntry = () => {
+  const sheetContext = useSheetContext()
+  const isMobile = useMobile()
+  return useCallback(
+    (options: NavigateEntryOptions) => {
+      navigateEntry(options)
+      if (isMobile && sheetContext) {
+        sheetContext.dismiss()
+      }
+    },
+    [isMobile, sheetContext],
+  )
+}
 
+/*
+ * /feeds/:timelineId/:feedId/:entryId
+ * timelineId: view-1, list-xxx, inbox-xxx
+ * feedId: xxx, folder-xxx
+ * entryId: xxx
+ */
 export const navigateEntry = (options: NavigateEntryOptions) => {
-  const { entryId, feedId, view, folderName, inboxId, listId } = options || {}
-  const { params, searchParams } = getReadonlyRoute()
+  const { entryId, feedId, view, folderName, inboxId, listId, timelineId } = options || {}
+  const { params } = getReadonlyRoute()
   let finalFeedId = feedId || params.feedId || ROUTE_FEED_PENDING
+  let finalTimelineId = timelineId || params.timelineId || ROUTE_FEED_PENDING
+  const finalEntryId = entryId || ROUTE_ENTRY_PENDING
 
   if ("feedId" in options && feedId === null) {
     finalFeedId = ROUTE_FEED_PENDING
@@ -39,34 +63,35 @@ export const navigateEntry = (options: NavigateEntryOptions) => {
     finalFeedId = `${ROUTE_FEED_IN_FOLDER}${folderName}`
   }
 
+  finalFeedId = encodeURIComponent(finalFeedId)
+
+  if (view !== undefined) {
+    finalTimelineId = `${ROUTE_TIMELINE_OF_VIEW}${view}`
+  }
+
   if (inboxId) {
-    finalFeedId = `${ROUTE_FEED_IN_INBOX}${inboxId}`
+    finalTimelineId = `${ROUTE_TIMELINE_OF_INBOX}${inboxId}`
   }
 
   if (listId) {
-    finalFeedId = `${ROUTE_FEED_IN_LIST}${listId}`
+    finalTimelineId = `${ROUTE_TIMELINE_OF_LIST}${listId}`
   }
 
-  finalFeedId = encodeURIComponent(finalFeedId)
-  const nextSearchParams = new URLSearchParams(searchParams)
-
-  if (!isUndefined(view)) {
-    nextSearchParams.set("view", view.toString())
-    setSidebarActiveView(view)
-  }
   resetShowSourceContent()
-
-  const finalView = nextSearchParams.get("view")
+  disableShowAISummary()
+  disableShowAITranslation()
 
   if (window.analytics) {
     window.analytics.capture("Navigate Entry", {
       feedId: finalFeedId,
       entryId,
-      view: finalView ? Number.parseInt(finalView, 10) : FeedViewType.Articles,
+      timelineId: finalTimelineId,
     })
   }
 
-  return getStableRouterNavigate()?.(
-    `/feeds/${finalFeedId}/${entryId || ROUTE_ENTRY_PENDING}?${nextSearchParams.toString()}`,
-  )
+  const path = `/feeds/${finalTimelineId}/${finalFeedId}/${finalEntryId}`
+
+  const currentPath = getReadonlyRoute().location.pathname + getReadonlyRoute().location.search
+  if (path === currentPath) return
+  return getStableRouterNavigate()?.(path)
 }

@@ -1,6 +1,13 @@
+import { transformShortcut } from "@follow/utils/utils"
+
 import { COPY_MAP } from "~/constants"
 
-export const shortcuts = {
+type Shortcuts = Record<
+  string,
+  Record<string, { name: I18nKeysForShortcuts; key: string; extra?: string }>
+>
+
+const shortcutConfigs = {
   feeds: {
     add: {
       name: "keys.feeds.add",
@@ -27,6 +34,10 @@ export const shortcuts = {
     toggleWideMode: {
       name: "keys.layout.toggleWideMode",
       key: "Meta+[",
+    },
+    zenMode: {
+      name: "keys.layout.zenMode",
+      key: "Control+Shift+Z",
     },
   },
   entries: {
@@ -100,7 +111,28 @@ export const shortcuts = {
       key: "Space",
     },
   },
+  misc: {
+    quickSearch: {
+      name: "keys.misc.quickSearch",
+      key: "Meta+K",
+    },
+  },
 } as const
+
+function transformShortcuts<T extends Shortcuts>(configs: T) {
+  const result = configs
+
+  for (const category in configs) {
+    for (const shortcutKey in configs[category]) {
+      const config = configs[category][shortcutKey]
+      result[category]![shortcutKey]!.key = transformShortcut(config!.key)
+    }
+  }
+
+  return result
+}
+
+export const shortcuts = transformShortcuts(shortcutConfigs) satisfies Shortcuts
 
 export const shortcutsType: { [key in keyof typeof shortcuts]: I18nKeysForShortcuts } = {
   feeds: "keys.type.feeds",
@@ -108,4 +140,5 @@ export const shortcutsType: { [key in keyof typeof shortcuts]: I18nKeysForShortc
   entries: "keys.type.entries",
   entry: "keys.type.entry",
   audio: "keys.type.audio",
+  misc: "keys.type.misc",
 }

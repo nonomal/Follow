@@ -1,5 +1,7 @@
 import { apiClient } from "@client/lib/api-fetch"
 import { getHydrateData } from "@client/lib/helper"
+import type { LoginHydrateData } from "@client/pages/(login)/login/metadata"
+import { getProviders } from "@follow/shared/auth"
 import { capitalizeFirstLetter, isBizId, parseUrl } from "@follow/utils/utils"
 import { useQuery } from "@tanstack/react-query"
 
@@ -22,7 +24,7 @@ export const useUserSubscriptionsQuery = (userId: string | undefined) => {
           if (!groupFolder[subscription.category]) {
             groupFolder[subscription.category] = []
           }
-          groupFolder[subscription.category].push(subscription)
+          groupFolder[subscription.category]!.push(subscription)
         }
       }
       return groupFolder
@@ -55,3 +57,22 @@ export const useUserQuery = (handleOrId: string | undefined) => {
     initialData: getHydrateData(`profiles.$get,query:id=${handleOrId}`),
   })
 }
+export interface AuthProvider {
+  name: string
+  id: string
+  color: string
+  icon: string
+}
+const getTypedProviders = async () => {
+  const providers = await getProviders()
+  return providers.data as Record<string, AuthProvider>
+}
+export const useAuthProviders = () => {
+  return useQuery({
+    queryKey: ["providers"],
+    queryFn: async () => getTypedProviders(),
+    initialData: getHydrateData(`betterAuth`) as LoginHydrateData,
+  })
+}
+
+export { getTypedProviders as getAuthProviders }

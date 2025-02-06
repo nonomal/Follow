@@ -1,16 +1,24 @@
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import legacy from "@vitejs/plugin-legacy"
+import chalk from "chalk"
+import { minify as htmlMinify } from "html-minifier-terser"
 import { cyan, dim, green } from "kolorist"
-import type { PluginOption, ViteDevServer } from "vite"
+import { parseHTML } from "linkedom"
+import type { PluginOption, ResolvedConfig, ViteDevServer } from "vite"
 import { defineConfig, loadEnv } from "vite"
+import { analyzer } from "vite-bundle-analyzer"
 import mkcert from "vite-plugin-mkcert"
+import { VitePWA } from "vite-plugin-pwa"
 
 import { viteRenderBaseConfig } from "./configs/vite.render.config"
 import type { env as EnvType } from "./packages/shared/src/env"
+import { cleanupUnnecessaryFilesPlugin } from "./plugins/vite/cleanup"
 import { createDependencyChunksPlugin } from "./plugins/vite/deps"
 import { htmlInjectPlugin } from "./plugins/vite/html-inject"
+import manifestPlugin from "./plugins/vite/manifest"
 import { createPlatformSpecificImportPlugin } from "./plugins/vite/specific-import"
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url))
@@ -37,6 +45,11 @@ const devPrint = (): PluginOption => ({
   },
 })
 
+const isRNBuild = process.env.RN_BUILD === "1"
+const isWebBuild = process.env.WEB_BUILD === "1"
+// eslint-disable-next-line no-console
+console.log(chalk.green("Build type:"), isRNBuild ? "RN" : isWebBuild ? "Web" : "Unknown")
+
 export default ({ mode }) => {
   const env = loadEnv(mode, process.cwd())
   const typedEnv = env as typeof EnvType
@@ -44,15 +57,15 @@ export default ({ mode }) => {
   return defineConfig({
     ...viteRenderBaseConfig,
     root: ROOT,
+    base: isRNBuild ? "./" : "/",
     envDir: resolve(__dirname, "."),
     build: {
-      outDir: resolve(__dirname, "out/web"),
+      outDir: resolve(__dirname, isRNBuild ? "out/rn-web" : "out/web"),
       target: "ES2022",
       sourcemap: isCI,
       rollupOptions: {
         input: {
           main: resolve(ROOT, "/index.html"),
-          __debug_proxy: resolve(ROOT, "/__debug_proxy.html"),
         },
       },
     },
@@ -61,23 +74,147 @@ export default ({ mode }) => {
       watch: {
         ignored: ["**/dist/**", "**/out/**", "**/public/**", ".git/**"],
       },
+      cors: true,
+      proxy: {
+        "/login": {
+          target: "http://localhost:2234",
+          changeOrigin: true,
+          selfHandleResponse: true,
+          configure: (proxy, _options) => {
+            proxy.on("proxyRes", (proxyRes, req, res) => {
+              const body = [] as any[]
+              proxyRes.on("data", (chunk: any) => body.push(chunk))
+              proxyRes.on("end", () => {
+                const html = parseHTML(Buffer.concat(body).toString())
+                const doc = html.document
+
+                const $scripts = doc.querySelectorAll("script")
+                $scripts.forEach((script) => {
+                  const src = script.getAttribute("src")
+                  if (src) {
+                    script.setAttribute("src", `http://localhost:2234${src}`)
+                  }
+                })
+
+                const $links = doc.querySelectorAll("link")
+                $links.forEach((link) => {
+                  const href = link.getAttribute("href")
+                  if (href) {
+                    link.setAttribute("href", `http://localhost:2234${href}`)
+                  }
+                })
+
+                res.setHeader("Content-Type", "text/html; charset=utf-8")
+
+                const modifiedHtml = doc.toString()
+                res.end(modifiedHtml)
+              })
+            })
+          },
+        },
+
+        ...(env.VITE_DEV_PROXY
+          ? {
+              [env.VITE_DEV_PROXY]: {
+                target: env.VITE_DEV_PROXY_TARGET,
+                changeOrigin: true,
+                rewrite: (path) => path.replace(new RegExp(`^${env.VITE_DEV_PROXY}`), ""),
+              },
+            }
+          : {}),
+      },
+    },
+    resolve: {
+      alias: {
+        ...viteRenderBaseConfig.resolve?.alias,
+        "@follow/logger": resolve(__dirname, "./packages/logger/web.ts"),
+      },
     },
     plugins: [
       ...((viteRenderBaseConfig.plugins ?? []) as any),
+      isWebBuild &&
+        VitePWA({
+          strategies: "injectManifest",
+          srcDir: "src",
+          filename: "sw.ts",
+          registerType: "prompt",
+          injectRegister: false,
+
+          injectManifest: {
+            globPatterns: [
+              "**/*.{js,json,css,html,txt,svg,png,ico,webp,woff,woff2,ttf,eot,otf,wasm}",
+            ],
+
+            manifestTransforms: [
+              (manifest) => {
+                return {
+                  manifest,
+                  warnings: [],
+                  additionalManifestEntries: [
+                    {
+                      url: "/sw.js?pwa=true",
+                      revision: null,
+                    },
+                  ],
+                }
+              },
+            ],
+          },
+
+          manifest: {
+            theme_color: "#000000",
+            name: "Follow",
+            display: "standalone",
+            background_color: "#ffffff",
+            icons: [
+              {
+                src: "pwa-64x64.png",
+                sizes: "64x64",
+                type: "image/png",
+              },
+              {
+                src: "pwa-192x192.png",
+                sizes: "192x192",
+                type: "image/png",
+              },
+              {
+                src: "pwa-512x512.png",
+                sizes: "512x512",
+                type: "image/png",
+              },
+              {
+                src: "maskable-icon-512x512.png",
+                sizes: "512x512",
+                type: "image/png",
+                purpose: "maskable",
+              },
+            ],
+          },
+
+          devOptions: {
+            enabled: false,
+            navigateFallback: "index.html",
+            suppressWarnings: true,
+            type: "module",
+          },
+        }),
       mode !== "development" &&
         legacy({
           targets: "defaults",
           renderLegacyChunks: false,
           modernTargets: ">0.3%, last 2 versions, Firefox ESR, not dead",
-          modernPolyfills: ["es.array.find-last-index", "es.array.find-last"],
+          modernPolyfills: [
+            // https://unpkg.com/browse/core-js@3.39.0/modules/
+            "es.promise.with-resolvers",
+          ],
         }),
       htmlInjectPlugin(typedEnv),
-      mkcert(),
+      process.env.SSL ? mkcert() : false,
       devPrint(),
       createDependencyChunksPlugin([
         //  React framework
         ["react", "react-dom"],
-        ["react-error-boundary", "react-dom/server", "react-router-dom"],
+        ["react-error-boundary", "react-dom/server", "react-router"],
         // Data Statement
         ["zustand", "jotai", "use-context-selector", "immer", "dexie"],
         // Remark
@@ -101,7 +238,7 @@ export default ({ mode }) => {
           "react-shadow",
         ],
         ["vfile", "unified"],
-        ["lodash-es"],
+        ["es-toolkit/compat"],
         ["framer-motion"],
         ["clsx", "tailwind-merge", "class-variance-authority"],
 
@@ -134,14 +271,29 @@ export default ({ mode }) => {
           "@tanstack/query-sync-storage-persister",
         ],
         ["tldts"],
-        ["shiki", "@shikijs/transformers"],
+
         ["@sentry/react", "@openpanel/web"],
         ["zod", "react-hook-form", "@hookform/resolvers"],
-
-        ["swiper"],
       ]),
 
-      createPlatformSpecificImportPlugin(false),
+      createPlatformSpecificImportPlugin(isWebBuild ? "web" : isRNBuild ? "rn" : "web"),
+      isWebBuild && manifestPlugin(),
+      isWebBuild && htmlPlugin(typedEnv),
+      process.env.analyzer && analyzer(),
+      isRNBuild &&
+        cleanupUnnecessaryFilesPlugin([
+          "og-image.png",
+          "icon-512x512.png",
+          "opengraph-image.png",
+          "favicon.ico",
+          "icon-192x192.png",
+          "favicon-dev.ico",
+          "apple-touch-icon-180x180.png",
+          "maskable-icon-512x512.png",
+          "pwa-64x64.png",
+          "pwa-192x192.png",
+          "pwa-512x512.png",
+        ]),
     ],
 
     define: {
@@ -149,4 +301,58 @@ export default ({ mode }) => {
       ELECTRON: "false",
     },
   })
+}
+
+function checkBrowserSupport() {
+  if (!("findLastIndex" in Array.prototype) || !("structuredClone" in window)) {
+    window.alert(
+      "Follow is not compatible with your browser because your browser version is too old. You can download and use the Follow app or continue using it with the latest browser.",
+    )
+
+    window.location.href = "https://follow.is/download"
+  }
+}
+
+const htmlPlugin: (env: any) => PluginOption = (env) => {
+  let config: ResolvedConfig
+  return {
+    name: "html-transform",
+    configResolved(resolvedConfig) {
+      config = resolvedConfig
+    },
+    enforce: "post",
+    closeBundle() {
+      const { root } = config
+      const dist = config.build.outDir
+      const debugProxyHtml = resolve(root, "debug_proxy.html")
+
+      if (existsSync(debugProxyHtml)) {
+        const content = readFileSync(debugProxyHtml, "utf-8")
+
+        writeFileSync(
+          resolve(dist, "__debug_proxy.html"),
+
+          content.replace("import.meta.env.VITE_API_URL", `"${env.VITE_API_URL}"`),
+        )
+      }
+    },
+    transformIndexHtml(html) {
+      return htmlMinify(
+        html.replace(
+          "<!-- Check Browser Script Inject -->",
+          `<script>${checkBrowserSupport.toString()}; checkBrowserSupport()</script>`,
+        ),
+        {
+          removeComments: true,
+          html5: true,
+          minifyJS: true,
+          minifyCSS: true,
+          removeTagWhitespace: true,
+          collapseWhitespace: true,
+          collapseBooleanAttributes: true,
+          collapseInlineTagWhitespace: true,
+        },
+      )
+    },
+  }
 }

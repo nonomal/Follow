@@ -9,13 +9,9 @@ import { ofetch } from "ofetch"
 import PKG from "../../../../package.json"
 import { isDev } from "./env"
 
-export const createApiClient = () => {
-  const authSessionToken = getTokenFromCookie(requestContext.get("req")?.headers.cookie || "")
-
+const getBaseURL = () => {
   const req = requestContext.get("req")!
-
   const { host } = req.headers
-
   let baseURL = env.VITE_EXTERNAL_API_URL || env.VITE_API_URL
 
   if (env.VITE_EXTERNAL_API_URL?.startsWith("/")) {
@@ -29,18 +25,32 @@ export const createApiClient = () => {
   if (upstreamEnv === "prod" && env.VITE_EXTERNAL_PROD_API_URL) {
     baseURL = env.VITE_EXTERNAL_PROD_API_URL
   }
+  return baseURL
+}
+export const createApiFetch = () => {
+  const baseURL = getBaseURL()
 
-  const apiFetch = ofetch.create({
+  return ofetch.create({
     credentials: "include",
-
     retry: false,
+    onRequest(context) {
+      if (isDev) console.info(`request: ${context.request}`)
 
+      context.options.headers.set("User-Agent", `Follow External Server Api Client/${PKG.version}`)
+    },
     onRequestError(context) {
       if (context.error.name === "AbortError") {
         return
       }
     },
+    baseURL,
   })
+}
+export const createApiClient = () => {
+  const authSessionToken = getTokenFromCookie(requestContext.get("req")?.headers.cookie || "")
+
+  const baseURL = getBaseURL()
+  const apiFetch = createApiFetch()
 
   const apiClient = hc<AppType>(baseURL, {
     fetch: async (input: any, options = {}) => apiFetch(input.toString(), options),
@@ -48,7 +58,8 @@ export const createApiClient = () => {
       return {
         "X-App-Version": PKG.version,
         "X-App-Dev": isDev ? "1" : "0",
-        Cookie: authSessionToken ? `authjs.session-token=${authSessionToken}` : "",
+        "User-Agent": `Follow External Server Api Client/${PKG.version}`,
+        Cookie: authSessionToken ? `__Secure-better-auth.session_token=${authSessionToken}` : "",
       }
     },
   })
@@ -62,12 +73,12 @@ export const getTokenFromCookie = (cookie: string) => {
     .reduce(
       (acc, item) => {
         const [key, value] = item.split("=")
-        acc[key] = value
+        acc[key!] = value!
         return acc
       },
       {} as Record<string, string>,
     )
-  return parsedCookieMap["authjs.session-token"]
+  return parsedCookieMap["__Secure-better-auth.session_token"]
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>

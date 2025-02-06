@@ -1,11 +1,9 @@
 import * as React from "react"
 
 import { FeedViewType } from "./enums"
-import type { t } from "./internal/i18n"
 
-export type I18nKeys = OmitStringType<Parameters<typeof t>[0]>
 interface ViewDefinition {
-  name: I18nKeys
+  name: string
   icon: React.JSX.Element
   className: string
   peerClassName: string
@@ -51,21 +49,5 @@ export const views: ViewDefinition[] = [
     wideMode: true,
     translation: "title",
     view: FeedViewType.Videos,
-  },
-  {
-    name: "feed_view_type.audios",
-    icon: <i className="i-mgc-mic-cute-fi" />,
-    className: "text-purple-600 dark:text-purple-500",
-    peerClassName: "peer-checked:text-purple-600 peer-checked:dark:text-purple-500",
-    translation: "title",
-    view: FeedViewType.Audios,
-  },
-  {
-    name: "feed_view_type.notifications",
-    icon: <i className="i-mgc-announcement-cute-fi" />,
-    className: "text-yellow-600 dark:text-yellow-500",
-    peerClassName: "peer-checked:text-yellow-600 peer-checked:dark:text-yellow-500",
-    translation: "title",
-    view: FeedViewType.Notifications,
   },
 ]

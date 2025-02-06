@@ -1,23 +1,24 @@
 import { Form, FormControl, FormField, FormItem } from "@follow/components/ui/form/index.jsx"
-import type { FeedViewType } from "@follow/constants"
-import { useSubscribeElectronEvent } from "@follow/shared/event"
+import { useRegisterGlobalContext } from "@follow/shared/bridge"
 import { cn } from "@follow/utils/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useLayoutEffect } from "react"
 import { useForm } from "react-hook-form"
 import { useHotkeys } from "react-hotkeys-hook"
+import { useTranslation } from "react-i18next"
 import { z } from "zod"
 
-import { getSidebarActiveView } from "~/atoms/sidebar"
 import { m } from "~/components/common/Motion"
 import { PlainModal } from "~/components/ui/modal/stacked/custom-modal"
 import { useModalStack } from "~/components/ui/modal/stacked/hooks"
 import { HotKeyScopeMap } from "~/constants"
+import { getRouteParams } from "~/hooks/biz/useRouteParams"
 import { tipcClient } from "~/lib/client"
 
 import { FeedForm } from "../discover/feed-form"
 
 const CmdNPanel = () => {
+  const { t } = useTranslation()
   const form = useForm({
     resolver: zodResolver(
       z.object({
@@ -42,12 +43,12 @@ const CmdNPanel = () => {
   const handleSubmit = () => {
     const { url } = form.getValues()
 
-    const defaultView = getSidebarActiveView() as FeedViewType
+    const defaultView = getRouteParams().view
 
     window.analytics?.capture("quick_add_feed", { url, defaultView })
 
     present({
-      title: "Add Feed",
+      title: t("feed_form.add_feed"),
       content: () => (
         <FeedForm
           asWidget
@@ -80,8 +81,8 @@ const CmdNPanel = () => {
               <FormControl>
                 <input
                   {...field}
-                  placeholder="Quick follow a feed, typing feed url here..."
-                  className="w-full shrink-0 border-b border-zinc-200 bg-transparent p-4 px-5 text-lg leading-4 dark:border-neutral-700"
+                  placeholder={t("quick_add.placeholder")}
+                  className="w-full shrink-0 border-zinc-200 bg-transparent p-4 px-5 text-lg leading-4 dark:border-neutral-700"
                 />
               </FormControl>
             </FormItem>
@@ -103,10 +104,11 @@ const CmdNPanel = () => {
 }
 
 export const CmdNTrigger = () => {
+  const { t } = useTranslation()
   const { present } = useModalStack()
   const handler = () => {
     present({
-      title: "Quick Follow",
+      title: t("quick_add.title"),
       content: CmdNPanel,
       CustomModalComponent: PlainModal,
       overlay: false,
@@ -115,7 +117,7 @@ export const CmdNTrigger = () => {
     })
   }
 
-  useSubscribeElectronEvent("QuickAdd", handler)
+  useRegisterGlobalContext("quickAdd", handler)
 
   useHotkeys("meta+n,ctrl+n", handler, {
     scopes: HotKeyScopeMap.Home,

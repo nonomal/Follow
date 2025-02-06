@@ -40,7 +40,7 @@ function NormalListItemImpl({
         </div>
         <div
           className={cn(
-            "relative my-0.5 break-words",
+            "relative my-0.5 line-clamp-2 break-words",
             !!entry.collections && "pr-5",
             entry.entries.title ? withDetails && "font-medium" : "text-[13px]",
           )}
@@ -50,27 +50,31 @@ function NormalListItemImpl({
           {/* {!!entry.collections && <StarIcon className="absolute right-0 top-0" />} */}
         </div>
         {withDetails && (
-          <div className={cn("text-[13px]", "text-zinc-400 dark:text-neutral-500")}>
-            {entry.entries.description}
+          <div className="flex gap-2">
+            <div
+              className={cn("grow text-[13px]", "line-clamp-5 text-zinc-400 dark:text-neutral-500")}
+            >
+              {entry.entries.description}
+            </div>
+
+            {entry.entries.media?.[0] && (
+              <div className="relative size-24 shrink-0 overflow-hidden rounded">
+                <LazyImage
+                  proxy={{
+                    width: 160,
+                    height: 160,
+                  }}
+                  className="overflow-hidden rounded"
+                  src={entry.entries.media[0].url}
+                  height={entry.entries.media[0].height}
+                  width={entry.entries.media[0].width}
+                  blurhash={entry.entries.media[0].blurhash}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {withDetails && entry.entries.media?.[0] && (
-        <div className="relative size-24 overflow-hidden rounded">
-          <LazyImage
-            proxy={{
-              width: 160,
-              height: 160,
-            }}
-            className="overflow-hidden rounded"
-            src={entry.entries.media[0].url}
-            height={entry.entries.media[0].height}
-            width={entry.entries.media[0].width}
-            blurhash={entry.entries.media[0].blurhash}
-          />
-        </div>
-      )}
     </div>
   )
 }

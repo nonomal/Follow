@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react"
 
 import { appLog } from "~/lib/log"
 
-const slateTime = 600000 // 10min
+const staleTime = 600_000 // 10min
 
 export class ElectronCloseEvent extends Event {
   static type = "electron-close"
@@ -45,7 +45,7 @@ const InvalidateQueryProviderElectron = () => {
   useEffect(() => {
     const handler = () => {
       const now = Date.now()
-      if (!currentTimeRef.current || now - currentTimeRef.current < slateTime) {
+      if (!currentTimeRef.current || now - currentTimeRef.current < staleTime) {
         appLog(
           `Window switch to visible, but skip invalidation, ${currentTimeRef.current ? now - currentTimeRef.current : 0}`,
         )
@@ -88,7 +88,7 @@ const InvalidateQueryProviderWebApp = () => {
     }
 
     const now = Date.now()
-    if (now - currentTimeRef.current < slateTime) {
+    if (now - currentTimeRef.current < staleTime) {
       return
     }
 

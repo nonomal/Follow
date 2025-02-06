@@ -1,3 +1,4 @@
+import { useMobile } from "@follow/components/hooks/useMobile.js"
 import { Button } from "@follow/components/ui/button/index.js"
 import { Card, CardContent, CardFooter, CardHeader } from "@follow/components/ui/card/index.jsx"
 import {
@@ -11,22 +12,22 @@ import {
 import { Input } from "@follow/components/ui/input/index.js"
 import { Radio } from "@follow/components/ui/radio-group/index.js"
 import { RadioGroup } from "@follow/components/ui/radio-group/RadioGroup.jsx"
-import type { FeedViewType } from "@follow/constants"
+import { ResponsiveSelect } from "@follow/components/ui/select/responsive.js"
 import { getBackgroundGradient } from "@follow/utils/color"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { produce } from "immer"
 import { atom, useAtomValue, useStore } from "jotai"
-import type { FC } from "react"
-import { memo, useCallback, useEffect, useState } from "react"
+import type { ChangeEvent, FC } from "react"
+import { memo, useCallback, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { z } from "zod"
 
-import { getSidebarActiveView } from "~/atoms/sidebar"
 import { Media } from "~/components/ui/media"
 import { useModalStack } from "~/components/ui/modal/stacked/hooks"
 import { useFollow } from "~/hooks/biz/useFollow"
+import { getRouteParams } from "~/hooks/biz/useRouteParams"
 import { apiClient } from "~/lib/api-fetch"
 
 import { FollowSummary } from "../feed/feed-summary"
@@ -65,7 +66,7 @@ const info: Record<
 
 type DiscoverSearchData = Awaited<ReturnType<typeof apiClient.discover.$post>>["data"]
 export function DiscoverForm({ type = "search" }: { type?: string }) {
-  const { prefix, default: defaultValue } = info[type]
+  const { prefix, default: defaultValue } = info[type]!
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -97,10 +98,10 @@ export function DiscoverForm({ type = "search" }: { type?: string }) {
   const { present, dismissAll } = useModalStack()
 
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (info[type].showModal) {
-      const defaultView = getSidebarActiveView() as FeedViewType
+    if (info[type]!.showModal) {
+      const defaultView = getRouteParams().view
       present({
-        title: "Add Feed",
+        title: t("feed_form.add_feed"),
         content: () => (
           <FeedForm
             asWidget
@@ -117,26 +118,26 @@ export function DiscoverForm({ type = "search" }: { type?: string }) {
     }
   }
 
-  const keyword = form.watch("keyword")
-  useEffect(() => {
-    const trimmedKeyword = keyword.trimStart()
-    if (!prefix) {
+  const handleKeywordChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const trimmedKeyword = event.target.value.trimStart()
+      if (!prefix) {
+        form.setValue("keyword", trimmedKeyword, { shouldValidate: true })
+        return
+      }
+      const isValidPrefix = prefix.find((p) => trimmedKeyword.startsWith(p))
+      if (!isValidPrefix) {
+        form.setValue("keyword", prefix[0]!)
+        return
+      }
+      if (trimmedKeyword.startsWith(`${isValidPrefix}${isValidPrefix}`)) {
+        form.setValue("keyword", trimmedKeyword.slice(isValidPrefix.length))
+        return
+      }
       form.setValue("keyword", trimmedKeyword)
-      return
-    }
-    const isValidPrefix = prefix.find((p) => trimmedKeyword.startsWith(p))
-    if (!isValidPrefix) {
-      form.setValue("keyword", prefix[0])
-
-      return
-    }
-
-    if (trimmedKeyword.startsWith(`${isValidPrefix}${isValidPrefix}`)) {
-      form.setValue("keyword", trimmedKeyword.slice(isValidPrefix.length))
-    }
-
-    form.setValue("keyword", trimmedKeyword)
-  }, [form, keyword, prefix])
+    },
+    [form, prefix],
+  )
 
   const handleSuccess = useCallback(
     (item: DiscoverSearchData[number]) => {
@@ -191,12 +192,14 @@ export function DiscoverForm({ type = "search" }: { type?: string }) {
     [form],
   )
 
+  const isMobile = useMobile()
+
   return (
     <>
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="w-[540px] space-y-8"
+          className="w-full max-w-[540px] space-y-8"
           data-testid="discover-form"
         >
           <FormField
@@ -204,9 +207,9 @@ export function DiscoverForm({ type = "search" }: { type?: string }) {
             name="keyword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t(info[type]?.label)}</FormLabel>
+                <FormLabel>{t(info[type]?.label!)}</FormLabel>
                 <FormControl>
-                  <Input autoFocus {...field} />
+                  <Input autoFocus {...field} onChange={handleKeywordChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -221,14 +224,26 @@ export function DiscoverForm({ type = "search" }: { type?: string }) {
                   <FormLabel>{t("discover.target.label")}</FormLabel>
                   <FormControl>
                     <div className="flex gap-4 text-sm">
-                      <RadioGroup
-                        className="flex items-center"
-                        value={field.value}
-                        onValueChange={handleTargetChange}
-                      >
-                        <Radio label={t("discover.target.feeds")} value="feeds" />
-                        <Radio label={t("discover.target.lists")} value="lists" />
-                      </RadioGroup>
+                      {isMobile ? (
+                        <ResponsiveSelect
+                          size="sm"
+                          value={field.value}
+                          onValueChange={handleTargetChange}
+                          items={[
+                            { label: t("discover.target.feeds"), value: "feeds" },
+                            { label: t("discover.target.lists"), value: "lists" },
+                          ]}
+                        />
+                      ) : (
+                        <RadioGroup
+                          className="flex items-center"
+                          value={field.value}
+                          onValueChange={handleTargetChange}
+                        >
+                          <Radio label={t("discover.target.feeds")} value="feeds" />
+                          <Radio label={t("discover.target.lists")} value="lists" />
+                        </RadioGroup>
+                      )}
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -238,16 +253,15 @@ export function DiscoverForm({ type = "search" }: { type?: string }) {
           )}
           <div className="center flex" data-testid="discover-form-actions">
             <Button disabled={!form.formState.isValid} type="submit" isLoading={mutation.isPending}>
-              {info[type].showModal ? t("discover.preview") : t("words.search")}
+              {info[type]!.showModal ? t("discover.preview") : t("words.search")}
             </Button>
           </div>
         </form>
       </Form>
       {mutation.isSuccess && (
-        <div className="mt-8 max-w-lg">
+        <div className="mt-8 w-full max-w-lg">
           <div className="mb-4 text-zinc-500">
-            Found {mutation.data?.length || 0} feed
-            {mutation.data?.length > 1 && "s"}
+            {t("discover.search.results", { count: mutation.data?.length || 0 })}
           </div>
           <div className="space-y-6 text-sm">
             {discoverSearchData?.map((item) => (
@@ -319,7 +333,7 @@ const SearchCard: FC<{
                   id: item.list?.id,
                   url: item.feed?.url,
                   defaultValues: {
-                    view: getSidebarActiveView().toString(),
+                    view: getRouteParams().view.toString(),
                   },
                   onSuccess() {
                     onSuccess(item)
